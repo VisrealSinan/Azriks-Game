@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Hollowhaven · Character Workshop</title>
+  <style>
+    :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, sans-serif; color:#eee8df; background:#151619; }
+    * { box-sizing:border-box; }
+    body { margin:0; }
+    main { width:min(1120px, 100% - 48px); margin:44px auto; }
+    header { display:flex; justify-content:space-between; gap:24px; align-items:flex-start; }
+    .eyebrow { color:#d6a976; font-size:11px; letter-spacing:3px; font-weight:650; text-transform:uppercase; margin:0 0 12px; }
+    h1 { margin:0; font-family:Georgia,serif; font-size:clamp(34px,5vw,52px); font-weight:400; letter-spacing:-1px; }
+    .lede { max-width:560px; color:#aaa7a2; line-height:1.65; font-size:14px; }
+    .badge { white-space:nowrap; padding:8px 12px; border:1px solid #4a3736; border-radius:99px; color:#dba39c; font-size:11px; margin-top:8px; }
+    .toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:16px 24px; padding:18px 0; border-top:1px solid #303136; margin-top:22px; }
+    fieldset { border:0; padding:0; margin:0; display:flex; gap:6px; }
+    legend { float:left; margin:9px 12px 0 0; font-size:12px; color:#bbb7b0; }
+    button { font:inherit; font-size:12px; color:#b9b6b0; border:1px solid #3b3c41; border-radius:6px; background:#202126; padding:8px 12px; cursor:pointer; }
+    button[aria-pressed=true] { color:#ffdfb7; border-color:#b68c62; background:#382e26; }
+    button:focus-visible, input:focus-visible, a:focus-visible { outline:2px solid #ffcf94; outline-offset:3px; }
+    label { font-size:12px; color:#bbb7b0; display:flex; align-items:center; gap:8px; }
+    input { accent-color:#d6a976; }
+    #zoom { width:110px; }
+    output { font-variant-numeric:tabular-nums; min-width:34px; }
+    .stage { position:relative; border:1px solid #393b40; border-radius:10px; overflow:hidden; }
+    canvas { display:block; width:100%; height:500px; }
+    #status { color:#ffbbad; padding:14px; margin:0; background:#402a2b; }
+    .stage-label { position:absolute; top:20px; left:22px; color:#908c86; font:10px ui-monospace, monospace; letter-spacing:1.4px; pointer-events:none; }
+    .profiles { display:grid; grid-template-columns:1fr 1fr; gap:28px; margin-top:24px; }
+    .profile { border-left:2px solid #843d45; padding-left:16px; }
+    .profile span { text-transform:uppercase; letter-spacing:1.7px; font-size:10px; color:#bd9087; }
+    h2 { font-family:Georgia,serif; font-weight:400; font-size:25px; margin:5px 0 8px; }
+    .profile p, footer { color:#999791; font-size:12px; line-height:1.7; margin:0; }
+    .profile a { display:inline-block; color:#d3ae85; font-size:12px; margin-top:9px; text-decoration-thickness:1px; text-underline-offset:4px; }
+    footer { border-top:1px solid #303136; margin-top:32px; padding-top:18px; display:flex; justify-content:space-between; gap:24px; }
+    @media(max-width:620px) { main { width:calc(100% - 28px); margin:26px auto; } header { display:block; } .badge { display:inline-block; } canvas { height:410px; } .profiles { gap:16px; } .profile { padding-left:10px; } footer { display:block; } .toolbar { gap:16px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><p class="eyebrow">Hollowhaven / Art development</p><h1>Character workshop</h1><p class="lede">The explorer and his winged companion. First transparent character textures, on one shared ground line.</p></div>
+    <span class="badge">STATIC PROTOTYPE · V1</span>
+  </header>
+  <div class="toolbar">
+    <fieldset><legend>Backdrop</legend><button data-theme="night" aria-pressed="true">Night</button><button data-theme="light" aria-pressed="false">Light</button><button data-theme="checker" aria-pressed="false">Alpha grid</button></fieldset>
+    <label for="zoom">Scale <input id="zoom" type="range" min="65" max="110" value="100"><output id="scale-value" for="zoom">100%</output></label>
+    <label><input type="checkbox" id="guides" checked> Ground pivots</label>
+  </div>
+  <div class="stage"><span class="stage-label">FRONT VIEW / NEUTRAL POSE</span><canvas id="stage" role="img" aria-label="Visreal Sinan and Azrik standing at a shared baseline. Visreal is taller; Azrik is a compact winged companion."></canvas><p id="status" role="status">Loading character textures…</p></div>
+  <section class="profiles" aria-label="Characters">
+    <article class="profile"><span>Player · Street explorer</span><h2>Visreal Sinan</h2><p>Long travel coat, crimson feathered wings and a crossbody satchel. Empty-handed base pose.</p><a href="../assets/characters/prototype/v1/visreal-sinan-idle-front-v1.png" download>Download transparent PNG</a></article>
+    <article class="profile"><span>Companion · Winged guide</span><h2>Azrik</h2><p>Compact silhouette, black-and-red jacket and feathered wings. Provisional height: 64% of Visreal.</p><a href="../assets/characters/prototype/v1/azrik-idle-front-v1.png" download>Download transparent PNG</a></article>
+  </section>
+  <footer><span>1024 × 1536 RGBA sources · Bottom-center ground pivots<br>Source pixels are unchanged. This viewer tests alpha and relative scale.</span><span>One pose each. No animation, rig or gameplay yet.<br>Camera, proportions and commercial rights still need review.</span></footer>
+</main>
+<script>
+'use strict';
+const canvas = document.getElementById('stage');
+const context = canvas.getContext('2d');
+const status = document.getElementById('status');
+const zoom = document.getElementById('zoom');
+const guides = document.getElementById('guides');
+let theme = 'night';
+let characters = [];
+function paint() {
+  if (!context) return;
+  const width = canvas.clientWidth, height = canvas.clientHeight, dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(width*dpr); canvas.height = Math.round(height*dpr);
+  context.setTransform(dpr,0,0,dpr,0,0);
+  context.fillStyle = theme === 'light' ? '#e6dfd4' : '#1d2026'; context.fillRect(0,0,width,height);
+  if (theme === 'checker') {
+    const tile = 20;
+    for (let y=0;y<height;y+=tile) for(let x=0;x<width;x+=tile) {
+      context.fillStyle = ((x+y)/tile)%2 ? '#bab7b1' : '#e4e0d8'; context.fillRect(x,y,tile,tile);
+    }
+  }
+  const ground = height-48;
+  const fit = Math.min(1,(height-94)/360,width/670);
+  if(guides.checked) {
+    context.strokeStyle = theme === 'night' ? '#55504a' : '#807973'; context.lineWidth=1;
+    context.setLineDash([4,6]); context.beginPath();context.moveTo(30,ground+.5);context.lineTo(width-30,ground+.5);context.stroke();context.setLineDash([]);
+  }
+  characters.forEach((c,index)=>{
+    const s = c.suggested_visible_height_px/(c.visible_bounds_px[3]-c.visible_bounds_px[1])*fit*Number(zoom.value)/100;
+    const x = width*(index===0?.34:.70);
+    context.drawImage(c.image,x-c.pivot_px[0]*s,ground-c.pivot_px[1]*s,c.canvas_px[0]*s,c.canvas_px[1]*s);
+    if(guides.checked) {
+      context.strokeStyle=theme==='night'?'#d4ab7f':'#65482c';context.lineWidth=1.2;
+      context.beginPath();context.moveTo(x-5,ground);context.lineTo(x+5,ground);context.moveTo(x,ground-5);context.lineTo(x,ground+5);context.stroke();
+      context.fillStyle=theme==='night'?'#a79c90':'#53473e';context.font='10px ui-monospace, monospace';context.textAlign='center';context.fillText(c.name.toUpperCase(),x,ground+24);
+    }
+  });
+}
+document.querySelectorAll('[data-theme]').forEach(button=>button.addEventListener('click',()=>{
+  theme=button.dataset.theme;
+  document.querySelectorAll('[data-theme]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+  paint();
+}));
+zoom.addEventListener('input',()=>{document.getElementById('scale-value').value=zoom.value+'%';paint();});
+guides.addEventListener('change',paint);
+new ResizeObserver(paint).observe(canvas);
+async function load() {
+  try {
+    if (!context) throw new Error('This browser does not support the canvas viewer.');
+    const response=await fetch('../assets/characters/prototype/v1/characters.json');
+    if(!response.ok) throw new Error('Could not load the character manifest.');
+    const manifest=await response.json();
+    characters=await Promise.all(manifest.characters.map(async character=>{
+      const image=new Image();image.src='../assets/characters/prototype/v1/'+character.file;
+      await image.decode();
+      return {...character,image};
+    }));
+    status.hidden=true;paint();
+  } catch(error) {
+    status.textContent='Could not load the assets. Start a local server from the repository root with python3 -m http.server 8000, then open http://localhost:8000/preview/.';
+    document.body.dataset.loadError=String(error);
+  }
+}
+load();
+</script>
+</body>
+</html>

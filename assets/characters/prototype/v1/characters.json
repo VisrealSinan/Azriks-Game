@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "project": "Hollowhaven",
+  "status": "static_prototype",
+  "notes": "One front-facing pose each. Provisional scale; not animated or rigged. Source PNGs unchanged.",
+  "characters": [
+    {
+      "id": "visreal_sinan",
+      "name": "Visreal Sinan",
+      "role": "Street explorer",
+      "file": "visreal-sinan-idle-front-v1.png",
+      "canvas_px": [
+        1024,
+        1536
+      ],
+      "visible_bounds_px": [
+        115,
+        15,
+        910,
+        1509
+      ],
+      "pivot_px": [
+        512,
+        1509
+      ],
+      "pivot_origin": "top_left",
+      "suggested_visible_height_px": 360,
+      "frames": 1,
+      "animation": null,
+      "sha256": "80f5b95e98884c65104e362cfaa6aac567c1d8c2ba270ce8135753cd4aa813d7"
+    },
+    {
+      "id": "azrik",
+      "name": "Azrik",
+      "role": "Winged companion",
+      "file": "azrik-idle-front-v1.png",
+      "canvas_px": [
+        1024,
+        1536
+      ],
+      "visible_bounds_px": [
+        58,
+        60,
+        958,
+        1491
+      ],
+      "pivot_px": [
+        512,
+        1491
+      ],
+      "pivot_origin": "top_left",
+      "suggested_visible_height_px": 230,
+      "frames": 1,
+      "animation": null,
+      "sha256": "aea83d83f1320458822b202c60aacdbe9e066edf82ae31356ca38dd9b9620ad7"
+    }
+  ]
+}
