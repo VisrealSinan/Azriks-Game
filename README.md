@@ -22,9 +22,15 @@ Open **http://localhost:8000/game/** in a modern desktop browser. You can also o
 2. Return to the sanctuary and ring the bell. The streets change and wraiths appear.
 3. Call each lost soul and guide all three back to the sanctuary.
 
-**WASD / arrows:** move · **E:** interact · **Space:** lantern pulse · **Shift:** run · **Escape:** pause · **M:** sound. Touch controls are included. The sanctuary is safe; delivering a soul restores one health. Win, lose, and restart are implemented.
+**WASD / arrows:** move · **E:** interact · **Space:** lantern pulse · **Shift:** run · **Escape:** pause · **J:** journal · **M:** sound. Touch controls are included. The sanctuary is safe; delivering a soul restores one health. Win, lose, and restart are implemented.
 
 This is a forgiving first playtest, not the full game. **Networked co-op is not implemented.** Azrik follows the player automatically. Characters use their existing static front-facing textures with simple motion effects, not rigged animations.
+
+## New in v0.2
+
+Three residents now inhabit the daytime streets. Speak with them, gather three optional memories to increase your lantern’s reach, and open the journal with **J** to read conversations, memories and rescued souls’ stories. The journal pauses the game while you read.
+
+Want to add your own flair? Start with `game/content.js` and the [customization guide](docs/CUSTOMIZE.md).
 
 ## Development and checks
 
@@ -33,7 +39,7 @@ npm run check
 npm run build
 ```
 
-Node.js 22+ is used for checks and packaging; there are no npm dependencies. `npm run build` copies the playable game and its textures to `dist/`. `npm run check` runs syntax checks and 16 gameplay tests, including full normal-movement playthroughs with live enemies and all three soul rescues. A GitHub Actions workflow repeats the checks and build on pushes and pull requests.
+Node.js 22+ is used for checks and packaging; there are no npm dependencies. `npm run build` copies the playable game and its textures to `dist/`. `npm run check` runs syntax checks and gameplay tests, including full normal-movement playthroughs with live enemies and all three soul rescues. A GitHub Actions workflow repeats the checks and build on pushes and pull requests.
 
 Read [play instructions, verification results and limitations](docs/PLAYTEST.md).
 

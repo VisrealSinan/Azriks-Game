@@ -4,12 +4,12 @@
 <body>
 <canvas id="world" aria-label="Hollowhaven town. Move with WASD or arrow keys, E to interact, Space to cast a lantern pulse."></canvas>
 <div class="vignette"></div>
-<header class="topbar"><a class="wordmark" href="./">HOLLOWHAVEN<span>THE FIRST NIGHT</span></a><div class="topright"><span class="prototype">SINGLE-PLAYER PROTOTYPE</span><button id="sound" aria-label="Enable sound" title="Toggle sound (M)">Sound off</button><button id="pause" aria-label="Pause game" title="Pause (Escape)">Pause</button></div></header>
+<header class="topbar"><a class="wordmark" href="./">HOLLOWHAVEN<span>THE FIRST NIGHT</span></a><div class="topright"><span class="prototype">SINGLE-PLAYER PROTOTYPE</span><button id="sound" aria-label="Enable sound" title="Toggle sound (M)">Sound off</button><button id="journal-button" aria-label="Open journal" title="Journal (J)">Journal</button><button id="pause" aria-label="Pause game" title="Pause (Escape)">Pause</button></div></header>
 <section id="hud" class="hidden" aria-label="Game status">
 <div class="vitals panel"><div class="eyebrow">VISREAL SINAN <span id="phase">LATE AFTERNOON</span></div><div id="hearts" aria-label="5 health">◆ ◆ ◆ ◆ ◆</div><div class="meter"><div id="energy"></div></div><div class="meter-label">LANTERN <span id="pulse-status">Light holds the dark</span></div></div>
-<div class="quest panel"><div class="eyebrow" id="chapter">01 / BEFORE THE BELL</div><h2 id="objective">Wake the ward lanterns.</h2><p id="objective-detail">Light three lanterns, then return to the sanctuary.</p><div id="counter">0 / 3 WARDS LIT</div></div>
+<div class="quest panel"><div class="eyebrow" id="chapter">01 / BEFORE THE BELL</div><h2 id="objective">Wake the ward lanterns.</h2><p id="objective-detail">Light three lanterns, then return to the sanctuary.</p><div id="counter">0 / 3 WARDS LIT</div><div id="memory-count">0 / 3 MEMORIES · OPTIONAL</div></div>
 <div class="map panel"><canvas id="minimap" width="210" height="154" aria-label="Town map, with your location, sanctuary and objectives"></canvas><div>◇ YOU <span>✦ WARD / SOUL</span></div></div>
-<div class="controls"><span><b>W A S D</b> Move</span><span><b>E</b> Interact</span><span><b>SPACE</b> Pulse</span><span><b>SHIFT</b> Run</span><span><b>ESC</b> Pause</span></div>
+<div class="controls"><span><b>W A S D</b> Move</span><span><b>E</b> Interact</span><span><b>SPACE</b> Pulse</span><span><b>SHIFT</b> Run</span><span><b>J</b> Journal</span><span><b>ESC</b> Pause</span></div>
 <div id="prompt" class="hidden"><kbd>E</kbd><span></span></div>
 <div id="dialogue" class="dialogue"><span class="speaker">AZRIK</span><p></p></div>
 <div class="touch-controls"><div class="dpad"><button data-key="up" aria-label="Move up">▲</button><button data-key="left" aria-label="Move left">◀</button><button data-key="down" aria-label="Move down">▼</button><button data-key="right" aria-label="Move right">▶</button></div><div class="actions"><button id="touch-interact">Call / Light</button><button id="touch-pulse">Pulse</button></div></div>
@@ -20,6 +20,7 @@
 </section>
 <section id="pause-menu" class="overlay centered hidden"><div class="modal"><div class="eyebrow gold">THE TOWN CAN WAIT</div><h1>Take a breath.</h1><p>WASD / arrows to move · E to interact<br>Space to pulse · Shift to run · M for sound</p><button class="primary" id="resume">Return to the streets</button><button class="secondary" id="restart-pause">Start a new night</button></div></section>
 <section id="ending" class="overlay centered hidden"><div class="modal"><div id="end-eyebrow" class="eyebrow gold"></div><h1 id="end-title"></h1><p id="end-copy"></p><div id="end-stats"></div><button class="primary" id="restart">Walk the streets again</button><div class="small">The first night is only the beginning.</div></div></section>
+<section id="journal-menu" class="overlay centered hidden" aria-label="Your journal"><div class="journal-modal"><div class="eyebrow gold">THINGS THE TOWN REMEMBERS</div><h1>The field journal.</h1><p class="journal-intro">Memories strengthen your lantern. Conversations and rescued souls leave their stories here. The game is paused while you read.</p><div id="journal-entries"></div><button class="primary" id="journal-close">Return to the streets</button></div></section>
 <div id="announcer" class="sr-only" aria-live="polite"></div>
-<script src="core.js"></script><script src="game.js"></script>
+<script src="content.js"></script><script src="core.js"></script><script src="game.js"></script>
 </body></html>

@@ -7,6 +7,7 @@
   const map = $('minimap'), m = map.getContext('2d');
   let game = H.createGame(), width = innerWidth, height = innerHeight, ratio = 1;
   let lastTime = 0, camera = { x: 900, y: 760 }, audio = null, soundOn = false;
+  let journalOpen = false, journalWasPaused = false;
   const keys = {}, touch = {}, reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const playerImage = new Image(), companionImage = new Image();
   playerImage.src = '../assets/characters/prototype/v1/visreal-sinan-idle-front-v1.png';
@@ -87,6 +88,22 @@
     ctx.fillStyle='#df82b2';ctx.fillRect(e.x-8,e.y-24+bob,4,3);ctx.fillRect(e.x+4,e.y-24+bob,4,3);
     if(e.hp===1){ctx.fillStyle='#aa708d';ctx.fillRect(e.x-10,e.y-56+bob,20,2);}
   }
+  function resident(person) {
+    const x = person.x, y = person.y;
+    ellipse(ctx, x, y + 3, 16, 6, '#0006');
+    poly(ctx, [[x,y-58],[x+12,y-39],[x+18,y],[x-18,y],[x-11,y-39]], person.color, '#a1b5a475');
+    ellipse(ctx, x, y - 43, 7, 9, '#c1b696');
+    poly(ctx, [[x-10,y-43],[x,y-60],[x+11,y-43],[x+5,y-49],[x-5,y-49]], '#263537');
+    ctx.fillStyle = '#d7bc7f';ctx.fillRect(x+16,y-21,7,10);glow(ctx,x+19,y-18,30,'#e1c17225');
+    ctx.font = '10px Georgia';ctx.textAlign = 'center';ctx.fillStyle = '#c4cab6';ctx.fillText(person.name.split(',')[0],x,y-72);
+    if (!person.spoken) {ctx.fillStyle = '#d2bc83';ctx.fillText('…',x,y-86);}
+  }
+  function memory(item) {
+    const x=item.x,y=item.y+(reduced?0:Math.sin(game.time*2+item.x)*4);
+    glow(ctx,x,y-12,40,'#e5b8782b');
+    poly(ctx,[[x,y-27],[x+8,y-14],[x,y-1],[x-8,y-14]],'#ead6a1','#fff2c6');
+    ctx.strokeStyle='#d9ca9466';ctx.beginPath();ctx.ellipse(x,y-14,16,8,Math.PI/4,0,Math.PI*2);ctx.stroke();
+  }
   function soul(s) {
     const bob=reduced?0:Math.sin(game.time*2+s.x)*4;
     glow(ctx,s.x,s.y-15,65,'#97e5d737');ellipse(ctx,s.x,s.y-21+bob,10,15,'#c7eee0c0');
@@ -109,6 +126,7 @@
     m.strokeStyle='#789b8b';m.beginPath();m.arc(900*sx,1050*sy,15,0,Math.PI*2);m.stroke();
     const goals=game.phase==='day'?game.beacons:game.souls.filter(s=>s.state!=='saved');
     for(const b of goals){m.fillStyle=b.lit?'#6d8073':game.phase==='day'?'#e1c587':'#b1e5d2';m.beginPath();m.arc(b.x*sx,b.y*sy,b.lit?2:3,0,Math.PI*2);m.fill();}
+    m.fillStyle='#a99b78';for(const item of game.memories.filter(v=>!v.found)){m.fillRect(item.x*sx-1,item.y*sy-1,2,2);}
     const p=game.player;m.fillStyle='#fff4d5';m.beginPath();m.moveTo(p.x*sx,p.y*sy-4);m.lineTo(p.x*sx+3,p.y*sy);m.lineTo(p.x*sx,p.y*sy+4);m.lineTo(p.x*sx-3,p.y*sy);m.closePath();m.fill();
   }
   function draw() {
@@ -123,6 +141,8 @@
     ctx.drawImage(night?terrain.night:terrain.day,0,0);
     if(night){for(const r of H.RIFTS){glow(ctx,r.x+r.w/2,r.y+r.h/2,130,'#7d426b22');ctx.fillStyle='#151320';ctx.fillRect(r.x,r.y,r.w,r.h);ctx.strokeStyle='#99678a';ctx.lineWidth=2;ctx.setLineDash([8,7]);ctx.strokeRect(r.x,r.y,r.w,r.h);ctx.setLineDash([]);for(let k=0;k<r.w;k+=22)poly(ctx,[[r.x+k,r.y+r.h],[r.x+k+10,r.y-25],[r.x+k+20,r.y+r.h]],'#222332','#75536c');}}
     const objects=H.BUILDINGS.map(b=>({y:b.y+b.h,draw:()=>drawBuilding(b,night)}));
+    if(!night) game.residents.forEach(person=>objects.push({y:person.y,draw:()=>resident(person)}));
+    game.memories.filter(item=>!item.found).forEach(item=>objects.push({y:item.y,draw:()=>memory(item)}));
     game.beacons.forEach(b=>objects.push({y:b.y,draw:()=>beacon(b)}));
     objects.push({y:H.HOME.y,draw:bell});
     game.souls.filter(s=>s.state!=='saved').forEach(s=>objects.push({y:s.y,draw:()=>soul(s)}));
@@ -132,7 +152,7 @@
     objects.push({y:p.y,draw:()=>character(playerImage,p.x,p.y,100,1509,p.facing<0,p.hurt>0&&Math.sin(game.time*24)>0?.45:1)});
     objects.push({y:a.y,draw:()=>character(companionImage,a.x,a.y-10+(reduced?0:Math.sin(game.time*3)*5),53,1491)});
     objects.sort((a,b)=>a.y-b.y).forEach(o=>o.draw());
-    for(const v of game.pulses){ctx.beginPath();ctx.arc(v.x,v.y-12,185*Math.min(1,v.age/.3),0,Math.PI*2);ctx.strokeStyle=`rgba(219,230,171,${Math.max(0,1-v.age/.65)})`;ctx.lineWidth=4;ctx.stroke();}
+    for(const v of game.pulses){ctx.beginPath();ctx.arc(v.x,v.y-12,v.radius*Math.min(1,v.age/.3),0,Math.PI*2);ctx.strokeStyle=`rgba(219,230,171,${Math.max(0,1-v.age/.65)})`;ctx.lineWidth=4;ctx.stroke();}
     if(!reduced){for(let i=0;i<28;i++){const x=(i*179+game.time*(i%2?5:-3)+1800)%1800,y=(i*131)%1320;ctx.fillStyle=night?'#c7ead555':'#c3caba35';ctx.fillRect(x,y+Math.sin(game.time+i)*7,2,2);}}
     ctx.restore();
     if(night){const fog=ctx.createRadialGradient(width/2,height/2,80,width/2,height/2,Math.max(width,height)*.7);fog.addColorStop(0,'#07131a00');fog.addColorStop(1,'#0208117a');ctx.fillStyle=fog;ctx.fillRect(0,0,width,height);}
@@ -141,7 +161,10 @@
   function updateUI() {
     const running=['day','night'].includes(game.phase),night=game.phase==='night';
     $('hud').classList.toggle('hidden',!running);$('intro').classList.toggle('hidden',game.phase!=='title');
-    $('pause').disabled=!running;$('pause-menu').classList.toggle('hidden',!game.paused||!running);
+    $('journal-button').disabled=game.phase==='title';
+    $('journal-menu').classList.toggle('hidden',!journalOpen);
+    $('memory-count').textContent=`${game.memories.filter(item=>item.found).length} / 3 MEMORIES · OPTIONAL`;
+    $('pause').disabled=!running;$('pause-menu').classList.toggle('hidden',!game.paused||!running||journalOpen);
     $('hearts').textContent=Array.from({length:5},(_,i)=>i<game.player.hp?'◆':'◇').join(' ');$('hearts').setAttribute('aria-label',`${game.player.hp} of 5 health`);
     $('energy').style.width=`${game.player.energy}%`;
     $('pulse-status').textContent=night?(game.pulseCooldown>0?'Recharging':game.player.energy<24?'Gathering light':'Pulse ready'):'Light holds the dark';
@@ -153,7 +176,9 @@
     $('counter').textContent=night?`${game.rescued} / 3 SOULS SAFE${following?' · '+following+' FOLLOWING':''}`:`${lit} / 3 WARDS LIT`;
     const n=H.nearest(game);$('prompt').classList.toggle('hidden',!n||game.paused);if(n)$('prompt').querySelector('span').textContent=n.label;
     $('dialogue').classList.toggle('hidden',game.messageTime<=0||game.paused);
-    const text=game.message.replace(/^Azrik: /,'');if($('dialogue').querySelector('p').textContent!==text){$('dialogue').querySelector('p').textContent=text;$('announcer').textContent=text;}
+    const colon=game.message.indexOf(': ');
+    $('dialogue').querySelector('.speaker').textContent=colon>0?game.message.slice(0,colon).toUpperCase():'AZRIK';
+    const text=colon>0?game.message.slice(colon+2):game.message;if($('dialogue').querySelector('p').textContent!==text){$('dialogue').querySelector('p').textContent=text;$('announcer').textContent=text;}
     $('ending').classList.toggle('hidden',!['won','lost'].includes(game.phase));
     if(['won','lost'].includes(game.phase)){
       const won=game.phase==='won';$('end-eyebrow').textContent=won?'DAWN COMES TO HOLLOWHAVEN':'THE VEIL CLOSES IN';$('end-title').textContent=won?'No one left behind.':'Your light went out.';
@@ -164,14 +189,24 @@
   function sound(event){
     if(!soundOn)return;
     try{audio??=new (window.AudioContext||window.webkitAudioContext)();audio.resume();const osc=audio.createOscillator(),gain=audio.createGain();osc.connect(gain);gain.connect(audio.destination);
-      const frequencies={start:220,light:660,night:110,soul:520,save:780,pulse:165,hurt:70,won:880,lost:55};
+      const frequencies={start:220,light:660,night:110,soul:520,memory:740,talk:300,save:780,pulse:165,hurt:70,won:880,lost:55};
       osc.type=['pulse','hurt','lost'].includes(event)?'triangle':'sine';osc.frequency.setValueAtTime(frequencies[event]||330,audio.currentTime);osc.frequency.exponentialRampToValueAtTime((frequencies[event]||330)*.55,audio.currentTime+.6);gain.gain.setValueAtTime(.0001,audio.currentTime);gain.gain.exponentialRampToValueAtTime(.12,audio.currentTime+.02);gain.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+1.2);osc.start();osc.stop(audio.currentTime+1.3);
     }catch{soundOn=false;$('sound').textContent='Sound unavailable';}
   }
   function toggleSound(){soundOn=!soundOn;$('sound').textContent=soundOn?'Sound on':'Sound off';$('sound').setAttribute('aria-label',soundOn?'Disable sound':'Enable sound');if(soundOn)sound('light');}
   function clearInput(){for(const k of Object.keys(keys))delete keys[k];for(const k of Object.keys(touch))delete touch[k];}
-  function pause(){if(!['day','night'].includes(game.phase))return;game.paused=!game.paused;clearInput();updateUI();if(game.paused)$('resume').focus();}
-  function restart(){clearInput();game=H.createGame();H.start(game);camera={x:game.player.x,y:game.player.y};lastTime=performance.now();updateUI();$('start').blur();$('restart').blur();$('restart-pause').blur();}
+  function pause(){if(journalOpen){toggleJournal();return;}if(!['day','night'].includes(game.phase))return;game.paused=!game.paused;clearInput();updateUI();if(game.paused)$('resume').focus();}
+  function restart(){clearInput();journalOpen=false;journalWasPaused=false;game=H.createGame();H.start(game);camera={x:game.player.x,y:game.player.y};lastTime=performance.now();updateUI();$('start').blur();$('restart').blur();$('restart-pause').blur();}
+  function toggleJournal(){
+    if(game.phase==='title')return;
+    if(journalOpen){journalOpen=false;game.paused=journalWasPaused;clearInput();updateUI();$('journal-button').focus();return;}
+    journalWasPaused=game.paused;game.paused=true;journalOpen=true;clearInput();
+    const entries=$('journal-entries');entries.replaceChildren();
+    if(!game.journal.length){const p=document.createElement('p');p.className='empty-journal';p.textContent='No pages yet. Speak to the townsfolk, gather the golden memories, and bring the lost souls home.';entries.append(p);}
+    for(const entry of game.journal){const card=document.createElement('article');card.className='journal-entry';const label=document.createElement('span');label.textContent=entry.kind==='resident'?'Town conversation':entry.kind==='soul'?'A soul remembered':'Lantern memory · +18 reach';const title=document.createElement('h3');title.textContent=entry.title;const text=document.createElement('p');text.textContent=entry.text;card.append(label,title,text);entries.append(card);}
+    updateUI();$('journal-close').focus();
+  }
+  $('journal-button').onclick=toggleJournal;$('journal-close').onclick=toggleJournal;
   $('start').onclick=()=>{H.start(game);updateUI();$('start').blur();};$('restart').onclick=restart;$('restart-pause').onclick=restart;
   $('pause').onclick=pause;$('resume').onclick=pause;$('sound').onclick=toggleSound;
   $('touch-interact').onclick=()=>H.interact(game);$('touch-pulse').onclick=()=>H.pulse(game);
@@ -184,7 +219,7 @@
     if(keyMap[e.code]||['Space','Escape','KeyE'].includes(e.code))e.preventDefault();
     if(keyMap[e.code])keys[e.code]=true;
     if(e.repeat)return;
-    if(e.code==='KeyE')H.interact(game);if(e.code==='Space')H.pulse(game);if(e.code==='Escape')pause();if(e.code==='KeyM')toggleSound();
+    if(e.code==='KeyE')H.interact(game);if(e.code==='Space')H.pulse(game);if(e.code==='Escape')pause();if(e.code==='KeyM')toggleSound();if(e.code==='KeyJ')toggleJournal();
   });
   addEventListener('keyup',e=>{if(keyMap[e.code])keys[e.code]=false;});
   addEventListener('blur',()=>{clearInput();if(['day','night'].includes(game.phase)&&!game.paused)pause();});

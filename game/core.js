@@ -1,7 +1,7 @@
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.Hollowhaven = factory();
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./content.js'));
+  else root.Hollowhaven = factory(root.HollowhavenContent);
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (CONTENT) {
   'use strict';
   const WORLD = { w: 1800, h: 1320 };
   const HOME = { x: 900, y: 1050, r: 135 };
@@ -28,7 +28,10 @@
       player: { x: 900, y: 945, r: 15, hp: 5, energy: 100, hurt: 0, facing: 1, moving: false },
       companion: { x: 950, y: 920 },
       beacons: [{ x: 270, y: 350, lit: false, name: 'Inn lantern' }, { x: 1520, y: 350, lit: false, name: 'Mourning lantern' }, { x: 1400, y: 1000, lit: false, name: 'Gate lantern' }],
-      souls: [], enemies: [], spawnIn: 2, message: 'Azrik: The town is quiet. Too quiet. Light the three ward lanterns before we ring the bell.', messageTime: 9,
+      souls: [], enemies: [], spawnIn: 2,
+      memories: CONTENT.memories.map(item => ({ ...item, found: false })),
+      residents: CONTENT.residents.map(item => ({ ...item, lines: [...item.lines], spoken: 0 })),
+      journal: [], message: 'Azrik: The town is quiet. Too quiet. Light the three ward lanterns before we ring the bell.', messageTime: 9,
       events: [], paused: false, seed: 137
     };
   }
@@ -53,13 +56,21 @@
       const soul = g.souls.find(s => s.state === 'lost' && dist(s, g.player) < 90);
       if (soul) return { type: 'soul', item: soul, label: 'Call the lost soul' };
     }
+    if (['day', 'night'].includes(g.phase)) {
+      const memory = g.memories.find(item => !item.found && dist(item, g.player) < 72);
+      if (memory) return { type: 'memory', item: memory, label: 'Gather a memory' };
+      if (g.phase === 'day') {
+        const resident = g.residents.find(item => dist(item, g.player) < 78);
+        if (resident) return { type: 'resident', item: resident, label: `Speak with ${resident.name.split(',')[0]}` };
+      }
+    }
     return null;
   }
   function beginNight(g) {
     if (g.phase !== 'day' || !g.beacons.every(b => b.lit)) return false;
     g.phase = 'night'; g.nightTime = 0;
     g.player.energy = 100; g.player.hp = 5;
-    g.souls = [{ x: 250, y: 335, name: 'The Lamplighter', state: 'lost' }, { x: 1550, y: 350, name: 'The Musician', state: 'lost' }, { x: 1390, y: 980, name: 'The Wanderer', state: 'lost' }];
+    g.souls = CONTENT.souls.map(s => ({ ...s, state: 'lost' }));
     g.enemies = [{ x: 900, y: 380, hp: 2, stun: 0 }, { x: 450, y: 800, hp: 2, stun: 0 }, { x: 1380, y: 420, hp: 2, stun: 0 }];
     // Relocate safely if a future layout change would raise a wall under the player.
     if (blocked(g, g.player.x, g.player.y)) { g.player.x = HOME.x; g.player.y = HOME.y; }
@@ -75,16 +86,30 @@
       tell(g, count === 3 ? 'Azrik: All three wards are burning. Return to the sanctuary and ring the bell.' : `Ward ${count} of 3 lit. Its light will mark our way home.`);
     } else if (n.type === 'bell') {
       if (!beginNight(g)) tell(g, 'Light all three ward lanterns first. Follow the gold markers on the map.');
+    } else if (n.type === 'memory') {
+      n.item.found = true;
+      g.journal.push({ id: n.item.id, title: n.item.title, text: n.item.text, kind: 'memory' });
+      g.events.push('memory');
+      tell(g, `Memory found: ${n.item.title}. Your lantern reaches farther. Open the journal with J to read it.`, 7);
+    } else if (n.type === 'resident') {
+      const resident = n.item;
+      tell(g, `${resident.name}: ${resident.lines[resident.spoken % resident.lines.length]}`, 9);
+      if (!g.journal.some(entry => entry.id === resident.id)) {
+        g.journal.push({ id: resident.id, title: resident.name, text: resident.lines.join(' '), kind: 'resident' });
+      }
+      resident.spoken++;
+      g.events.push('talk');
     } else if (n.type === 'soul') {
       n.item.state = 'following'; g.events.push('soul');
       tell(g, `${n.item.name}: I remember that light. Please… take me home.`);
     }
   }
+  function pulseRadius(g) { return 185 + g.memories.filter(item => item.found).length * 18; }
   function pulse(g) {
     if (g.paused || g.phase !== 'night' || g.pulseCooldown > 0 || g.player.energy < 24) return false;
     g.player.energy -= 24; g.pulseCooldown = 1.15;
-    g.pulses.push({ x: g.player.x, y: g.player.y, age: 0 }); g.events.push('pulse');
-    for (const e of g.enemies) if (dist(e, g.player) < 185) { e.hp--; e.stun = 1.6; }
+    g.pulses.push({ x: g.player.x, y: g.player.y, age: 0, radius: pulseRadius(g) }); g.events.push('pulse');
+    for (const e of g.enemies) if (dist(e, g.player) < pulseRadius(g)) { e.hp--; e.stun = 1.6; }
     const alive = g.enemies.filter(e => e.hp > 0); g.kills += g.enemies.length - alive.length; g.enemies = alive;
     return true;
   }
@@ -134,10 +159,10 @@
       // Souls are incorporeal and safely follow through the shifting walls.
       if (d > 38) { s.x += (leader.x - s.x) / d * Math.min(d - 38, 210 * dt); s.y += (leader.y - s.y) / d * Math.min(d - 38, 210 * dt); }
       leader = s;
-      if (dist(s, HOME) < HOME.r - 25) { s.state = 'saved'; g.rescued++; g.events.push('save'); p.hp = Math.min(5, p.hp + 1); tell(g, `${g.rescued} of 3 souls sheltered. The sanctuary mends your wounds.`); }
+      if (dist(s, HOME) < HOME.r - 25) { s.state = 'saved'; g.rescued++; g.events.push('save'); g.journal.push({ id: s.id, title: s.name, text: s.recollection, kind: 'soul' }); p.hp = Math.min(5, p.hp + 1); tell(g, `${g.rescued} of 3 souls sheltered. The sanctuary mends your wounds.`); }
     }
     if (p.hp <= 0) { g.phase = 'lost'; g.events.push('lost'); }
     else if (g.rescued === 3) { g.phase = 'won'; g.events.push('won'); }
   }
-  return { WORLD, HOME, BUILDINGS, RIFTS, dist, clamp, createGame, start, nearest, beginNight, interact, pulse, update, blocked };
+  return { WORLD, HOME, BUILDINGS, RIFTS, dist, clamp, createGame, start, nearest, beginNight, interact, pulse, pulseRadius, update, blocked };
 });
