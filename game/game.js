@@ -88,6 +88,40 @@
     ctx.fillStyle='#df82b2';ctx.fillRect(e.x-8,e.y-24+bob,4,3);ctx.fillRect(e.x+4,e.y-24+bob,4,3);
     if(e.hp===1){ctx.fillStyle='#aa708d';ctx.fillRect(e.x-10,e.y-56+bob,20,2);}
   }
+  function hunterWarning(e) {
+    if (e.mode !== 'tell' && e.mode !== 'dash') return;
+    const dx=e.aimX||0,dy=e.aimY||0,length=430*(e.mode==='tell'?.42:Math.max(0,e.modeTime));
+    ctx.save();ctx.translate(e.x,e.y);ctx.rotate(Math.atan2(dy,dx));
+    // A fixed, high-contrast lane shows exactly where the hound will commit.
+    poly(ctx,[[0,-15],[Math.max(0,length-20),-15],[length,0],[Math.max(0,length-20),15],[0,15]],e.mode==='tell'?'#efb65b30':'#efb65b19');
+    ctx.strokeStyle=e.mode==='tell'?'#ffcc78':'#c19561';ctx.lineWidth=2;ctx.setLineDash([10,7]);
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(length,0);ctx.stroke();ctx.setLineDash([]);
+    poly(ctx,[[length-12,-7],[length,0],[length-12,7]],'#ffdc95');
+    ctx.restore();
+  }
+  function hunter(e) {
+    const facing=(e.mode==='tell'||e.mode==='dash')?(e.aimX<0?-1:1):(game.player.x<e.x?-1:1);
+    const warn=e.mode==='tell',dash=e.mode==='dash',stunned=e.stun>0;
+    ellipse(ctx,e.x,e.y+6,28,7,'#0007');glow(ctx,e.x,e.y-10,48,warn?'#efac4d55':'#87a6c72b');
+    ctx.save();ctx.translate(e.x,e.y);ctx.scale(facing,1);
+    if(dash){ctx.strokeStyle='#bdcedc60';ctx.lineWidth=3;for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(-32-i*5,-8-i*7);ctx.lineTo(-65-i*8,-8-i*7);ctx.stroke();}}
+    // Low shoulders, pointed muzzle, ears, legs and trailing tail: distinct from the upright wraith.
+    poly(ctx,[[-27,-12],[-42,-29],[-36,-7],[-23,-2],[-19,10],[-11,10],[-12,-1],[7,-1],[17,10],[25,10],[19,-6],[35,-13],[37,-19],[26,-21],[24,-36],[15,-26],[7,-32],[5,-22],[-12,-22]],stunned?'#899eab':warn?'#51402e':'#283443',warn?'#f3c775':'#91a9be');
+    ctx.fillStyle=warn?'#fff0b1':'#d2e6f1';ctx.fillRect(23,-22,5,3);
+    ctx.restore();
+    if(warn){ctx.fillStyle='#ffdc95';ctx.font='bold 18px Arial';ctx.textAlign='center';ctx.fillText('!',e.x,e.y-47);}
+  }
+  function guardianAura() {
+    if(game.guardTime<=0)return;
+    const p=game.player,a=game.companion,r=175;
+    ctx.save();
+    glow(ctx,p.x,p.y,r+20,'#e6c77d28');
+    ctx.strokeStyle='#f1d48a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle='#e7c78166';ctx.lineWidth=1;ctx.beginPath();ctx.arc(p.x,p.y,r-9,0,Math.PI*2);ctx.stroke();
+    for(let i=0;i<8;i++){const ang=i*Math.PI/4+(reduced?0:game.time*.12),x=p.x+Math.cos(ang)*r,y=p.y+Math.sin(ang)*r;poly(ctx,[[x,y-5],[x+4,y],[x,y+5],[x-4,y]],'#fff0b8');}
+    ctx.strokeStyle='#f5d48b99';ctx.setLineDash([4,6]);ctx.beginPath();ctx.moveTo(a.x,a.y-20);ctx.lineTo(p.x,p.y-22);ctx.stroke();ctx.setLineDash([]);
+    glow(ctx,a.x,a.y-20,65,'#ffda8b66');ctx.restore();
+  }
   function resident(person) {
     const x = person.x, y = person.y;
     ellipse(ctx, x, y + 3, 16, 6, '#0006');
@@ -146,7 +180,9 @@
     game.beacons.forEach(b=>objects.push({y:b.y,draw:()=>beacon(b)}));
     objects.push({y:H.HOME.y,draw:bell});
     game.souls.filter(s=>s.state!=='saved').forEach(s=>objects.push({y:s.y,draw:()=>soul(s)}));
-    game.enemies.forEach(e=>objects.push({y:e.y,draw:()=>wraith(e)}));
+    game.enemies.filter(e=>e.type==='hunter').forEach(hunterWarning);
+    guardianAura();
+    game.enemies.forEach(e=>objects.push({y:e.y,draw:()=>e.type==='hunter'?hunter(e):wraith(e)}));
     const p=game.player,a=game.companion;
     glow(ctx,p.x,p.y-20,night?215:100,night?'#d4c48222':'#e2d49b11');
     objects.push({y:p.y,draw:()=>character(playerImage,p.x,p.y,100,1509,p.facing<0,p.hurt>0&&Math.sin(game.time*24)>0?.45:1)});
@@ -168,11 +204,18 @@
     $('hearts').textContent=Array.from({length:5},(_,i)=>i<game.player.hp?'◆':'◇').join(' ');$('hearts').setAttribute('aria-label',`${game.player.hp} of 5 health`);
     $('energy').style.width=`${game.player.energy}%`;
     $('pulse-status').textContent=night?(game.pulseCooldown>0?'Recharging':game.player.energy<24?'Gathering light':'Pulse ready'):'Light holds the dark';
-    $('phase').textContent=night?'AFTER THE BELL':'LATE AFTERNOON';
+    $('phase').textContent=night?(game.mode==='nightwatch'?'NIGHTWATCH':'AFTER THE BELL'):'LATE AFTERNOON';
+    const guarded=game.guardTime>0,cooldown=Math.ceil(game.guardCooldown);
+    const guardLabel=guarded?`Shield active · ${Math.ceil(game.guardTime)}s`:cooldown>0?`Ready in ${cooldown}s`:night?'Ready · 3s shield':'Ready after dusk';
+    $('guard-status').textContent=guardLabel;
+    $('guardian-hud').classList.toggle('is-active',guarded);
+    $('touch-guard').disabled=!night||cooldown>0||game.paused;
+    $('touch-guard').textContent=guarded?'Shield active':cooldown>0?`Guardian ${cooldown}s`:'Guardian';
+    document.querySelectorAll('[name=mode]').forEach(input=>{input.checked=input.value===game.mode;});
     $('chapter').textContent=night?'02 / THE FIRST NIGHT':'01 / BEFORE THE BELL';
     const lit=game.beacons.filter(b=>b.lit).length,following=game.souls.filter(s=>s.state==='following').length;
     $('objective').textContent=night?(following?'Lead them home.':'Find the lost souls.'):(lit===3?'Ring the night bell.':'Wake the ward lanterns.');
-    $('objective-detail').textContent=night?'E calls a soul. Bring it inside the sanctuary. Space drives wraiths away.':lit===3?'Return to the circle on your map. Press E by the bell.':'Light three lanterns, then return to the sanctuary.';
+    $('objective-detail').textContent=night?(game.mode==='nightwatch'?'E calls scattered souls again. Lead them home; dodge amber hound lanes. Q shields nearby souls.':'E calls a soul. Bring it home. Space repels enemies; Q shields you and nearby souls.'):lit===3?'Return to the circle on your map. Press E by the bell.':'Light three lanterns, then return to the sanctuary.';
     $('counter').textContent=night?`${game.rescued} / 3 SOULS SAFE${following?' · '+following+' FOLLOWING':''}`:`${lit} / 3 WARDS LIT`;
     const n=H.nearest(game);$('prompt').classList.toggle('hidden',!n||game.paused);if(n)$('prompt').querySelector('span').textContent=n.label;
     $('dialogue').classList.toggle('hidden',game.messageTime<=0||game.paused);
@@ -182,21 +225,21 @@
     $('ending').classList.toggle('hidden',!['won','lost'].includes(game.phase));
     if(['won','lost'].includes(game.phase)){
       const won=game.phase==='won';$('end-eyebrow').textContent=won?'DAWN COMES TO HOLLOWHAVEN':'THE VEIL CLOSES IN';$('end-title').textContent=won?'No one left behind.':'Your light went out.';
-      $('end-copy').textContent=won?'Three souls found shelter. For one more night, the town remembers their names. Azrik settles beside you as the bells welcome the morning.':'The town still needs you. Keep your lantern charged, pulse before wraiths get close, and return to the sanctuary between rescues.';
-      $('end-stats').textContent=`${game.rescued} souls sheltered · ${game.kills} wraiths banished · ${Math.floor(game.nightTime/60)}:${String(Math.floor(game.nightTime%60)).padStart(2,'0')} after dark`;
+      $('end-copy').textContent=won?'Three souls found shelter. For one more night, the town remembers their names. Azrik settles beside you as the bells welcome the morning.':'The town still needs you. Pulse before enemies get close. Use Q for Azrik’s shield, dodge the amber hound lanes, and call scattered souls again with E.';
+      $('end-stats').textContent=`${game.rescued} souls sheltered · ${game.kills} foes banished · ${Math.floor(game.nightTime/60)}:${String(Math.floor(game.nightTime%60)).padStart(2,'0')} after dark · ${game.guardUses} shields · ${game.damageTaken} damage taken${game.mode==='nightwatch'?` · ${game.soulScatters} souls scattered`:''}`;
     }
   }
   function sound(event){
     if(!soundOn)return;
     try{audio??=new (window.AudioContext||window.webkitAudioContext)();audio.resume();const osc=audio.createOscillator(),gain=audio.createGain();osc.connect(gain);gain.connect(audio.destination);
-      const frequencies={start:220,light:660,night:110,soul:520,memory:740,talk:300,save:780,pulse:165,hurt:70,won:880,lost:55};
+      const frequencies={start:220,light:660,night:110,soul:520,memory:740,talk:300,save:780,pulse:165,guard:440,scatter:95,hurt:70,won:880,lost:55};
       osc.type=['pulse','hurt','lost'].includes(event)?'triangle':'sine';osc.frequency.setValueAtTime(frequencies[event]||330,audio.currentTime);osc.frequency.exponentialRampToValueAtTime((frequencies[event]||330)*.55,audio.currentTime+.6);gain.gain.setValueAtTime(.0001,audio.currentTime);gain.gain.exponentialRampToValueAtTime(.12,audio.currentTime+.02);gain.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+1.2);osc.start();osc.stop(audio.currentTime+1.3);
     }catch{soundOn=false;$('sound').textContent='Sound unavailable';}
   }
   function toggleSound(){soundOn=!soundOn;$('sound').textContent=soundOn?'Sound on':'Sound off';$('sound').setAttribute('aria-label',soundOn?'Disable sound':'Enable sound');if(soundOn)sound('light');}
   function clearInput(){for(const k of Object.keys(keys))delete keys[k];for(const k of Object.keys(touch))delete touch[k];}
   function pause(){if(journalOpen){toggleJournal();return;}if(!['day','night'].includes(game.phase))return;game.paused=!game.paused;clearInput();updateUI();if(game.paused)$('resume').focus();}
-  function restart(){clearInput();journalOpen=false;journalWasPaused=false;game=H.createGame();H.start(game);camera={x:game.player.x,y:game.player.y};lastTime=performance.now();updateUI();$('start').blur();$('restart').blur();$('restart-pause').blur();}
+  function restart(){clearInput();journalOpen=false;journalWasPaused=false;game=H.createGame(game.mode);H.start(game);camera={x:game.player.x,y:game.player.y};lastTime=performance.now();updateUI();$('start').blur();$('restart').blur();$('restart-pause').blur();}
   function toggleJournal(){
     if(game.phase==='title')return;
     if(journalOpen){journalOpen=false;game.paused=journalWasPaused;clearInput();updateUI();$('journal-button').focus();return;}
@@ -209,6 +252,8 @@
   $('journal-button').onclick=toggleJournal;$('journal-close').onclick=toggleJournal;
   $('start').onclick=()=>{H.start(game);updateUI();$('start').blur();};$('restart').onclick=restart;$('restart-pause').onclick=restart;
   $('pause').onclick=pause;$('resume').onclick=pause;$('sound').onclick=toggleSound;
+  document.querySelectorAll('[name=mode]').forEach(input=>input.onchange=()=>{H.chooseMode(game,input.value);updateUI();});
+  $('touch-guard').onclick=()=>H.guard(game);
   $('touch-interact').onclick=()=>H.interact(game);$('touch-pulse').onclick=()=>H.pulse(game);
   document.querySelectorAll('[data-key]').forEach(button=>{
     button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture(e.pointerId);touch[button.dataset.key]=true;});
@@ -216,10 +261,11 @@
   });
   const keyMap={KeyW:'up',ArrowUp:'up',KeyS:'down',ArrowDown:'down',KeyA:'left',ArrowLeft:'left',KeyD:'right',ArrowRight:'right',ShiftLeft:'sprint',ShiftRight:'sprint'};
   addEventListener('keydown',e=>{
-    if(keyMap[e.code]||['Space','Escape','KeyE'].includes(e.code))e.preventDefault();
+    if(e.target instanceof HTMLInputElement || (e.code==='Space' && e.target instanceof HTMLButtonElement))return;
+    if(keyMap[e.code]||['Space','Escape','KeyE','KeyQ'].includes(e.code))e.preventDefault();
     if(keyMap[e.code])keys[e.code]=true;
     if(e.repeat)return;
-    if(e.code==='KeyE')H.interact(game);if(e.code==='Space')H.pulse(game);if(e.code==='Escape')pause();if(e.code==='KeyM')toggleSound();if(e.code==='KeyJ')toggleJournal();
+    if(e.code==='KeyQ')H.guard(game);if(e.code==='KeyE')H.interact(game);if(e.code==='Space')H.pulse(game);if(e.code==='Escape')pause();if(e.code==='KeyM')toggleSound();if(e.code==='KeyJ')toggleJournal();
   });
   addEventListener('keyup',e=>{if(keyMap[e.code])keys[e.code]=false;});
   addEventListener('blur',()=>{clearInput();if(['day','night'].includes(game.phase)&&!game.paused)pause();});
@@ -227,5 +273,5 @@
   function frame(now){const dt=lastTime?Math.min((now-lastTime)/1000,.05):0;lastTime=now;const input={};for(const k of ['up','down','left','right','sprint'])input[k]=!!(touch[k]||Object.keys(keys).some(code=>keys[code]&&keyMap[code]===k));H.update(game,dt,input);for(const event of game.events.splice(0))sound(event);draw();updateUI();requestAnimationFrame(frame);}
   requestAnimationFrame(frame);
   // Read-only inspection for local QA; no save, account, network, or telemetry.
-  window.hollowhavenStatus=()=>({phase:game.phase,paused:game.paused,player:{...game.player},lit:game.beacons.filter(b=>b.lit).length,rescued:game.rescued,following:game.souls.filter(s=>s.state==='following').length,enemyCount:game.enemies.length,imageFailures});
+  window.hollowhavenStatus=()=>({phase:game.phase,mode:game.mode,guardTime:game.guardTime,guardCooldown:game.guardCooldown,guardUses:game.guardUses,damageTaken:game.damageTaken,soulScatters:game.soulScatters,paused:game.paused,player:{...game.player},lit:game.beacons.filter(b=>b.lit).length,rescued:game.rescued,following:game.souls.filter(s=>s.state==='following').length,enemyCount:game.enemies.length,imageFailures});
 })();

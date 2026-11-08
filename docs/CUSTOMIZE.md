@@ -20,7 +20,7 @@ Coordinates use a town measuring 1800 × 1320. X increases to the right and Y in
 
 ## Systems
 
-`game/core.js` contains movement, collision, the day/night transition, pulse combat, soul followers and objectives. It does not depend on the browser, so its rules can be tested with Node. `game/game.js` connects those rules to the browser and draws the world.
+`game/core.js` contains movement, collision, the day/night transition, pulse combat, soul followers, guardian protection, hound behavior and objectives. Story/Nightwatch selection lives in the game state. It does not depend on the browser, so its rules can be tested with Node. `game/game.js` connects those rules to the browser and draws the world.
 
 ## Try a change
 

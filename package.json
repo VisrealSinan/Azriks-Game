@@ -1,6 +1,6 @@
 {
   "name": "hollowhaven-first-night",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "A playable single-player Hollowhaven vertical slice",
   "scripts": {"test": "node --test tests/*.test.cjs", "check": "node --check game/content.js && node --check game/core.js && node --check game/game.js && node --test tests/*.test.cjs", "build": "node tools/build-site.cjs"}

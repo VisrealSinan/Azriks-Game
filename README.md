@@ -22,11 +22,17 @@ Open **http://localhost:8000/game/** in a modern desktop browser. You can also o
 2. Return to the sanctuary and ring the bell. The streets change and wraiths appear.
 3. Call each lost soul and guide all three back to the sanctuary.
 
-**WASD / arrows:** move · **E:** interact · **Space:** lantern pulse · **Shift:** run · **Escape:** pause · **J:** journal · **M:** sound. Touch controls are included. The sanctuary is safe; delivering a soul restores one health. Win, lose, and restart are implemented.
+**WASD / arrows:** move · **E:** interact · **Space:** lantern pulse · **Shift:** run · **Escape:** pause · **Q:** Azrik’s shelter · **J:** journal · **M:** sound. Touch controls are included. The sanctuary is safe; delivering a soul restores one health. Win, lose, and restart are implemented.
 
 This is a forgiving first playtest, not the full game. **Networked co-op is not implemented.** Azrik follows the player automatically. Characters use their existing static front-facing textures with simple motion effects, not rigged animations.
 
-## New in v0.2
+## New in v0.3: Nightwatch
+
+Choose **Story** for the original forgiving rescue loop, or **Nightwatch** for spectral hounds and endangered escorts. Hounds show an amber warning before committing to a straight-line charge: sidestep it or interrupt them with a lantern pulse. They take three pulses to banish.
+
+Azrik is now an active partner: **Q** calls a three-second shelter around you and nearby souls, with an eighteen-second cooldown and no lantern cost. In Nightwatch, a wraith or hound can scatter an escorted soul; return and call it again with **E**. No soul is permanently lost. The sanctuary remains safe. Touch players have a Guardian button.
+
+## The town remembers
 
 Three residents now inhabit the daytime streets. Speak with them, gather three optional memories to increase your lantern’s reach, and open the journal with **J** to read conversations, memories and rescued souls’ stories. The journal pauses the game while you read.
 

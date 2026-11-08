@@ -122,12 +122,15 @@ function ui() {
       replaceChildren(){this.children=[];},append(...items){this.children.push(...items);}};
   }
   const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id);};
-  let state; const api={...H,createGame:()=>state=H.createGame()};
-  const sandbox={window:{Hollowhaven:api},document:{getElementById:get,createElement:element,querySelectorAll:()=>[],addEventListener:noop},
+  class HTMLInputElement {}
+  class HTMLButtonElement {}
+  const modes=['story','nightwatch'].map(value=>Object.assign(new HTMLInputElement(),{value}));
+  let state; const api={...H,createGame:(...args)=>state=H.createGame(...args)};
+  const sandbox={window:{Hollowhaven:api},document:{getElementById:get,createElement:element,querySelectorAll:selector=>selector==='[name=mode]'?modes:[],addEventListener:noop},
     innerWidth:1200,innerHeight:800,devicePixelRatio:1,matchMedia:()=>({matches:false}),
-    Image:class {},addEventListener:(name,fn)=>events[name]=fn,requestAnimationFrame:noop,performance:{now:()=>1}};
+    HTMLInputElement,HTMLButtonElement,Image:class {},addEventListener:(name,fn)=>events[name]=fn,requestAnimationFrame:noop,performance:{now:()=>1}};
   vm.runInNewContext(fs.readFileSync(require.resolve('../game/game.js'),'utf8'),sandbox);
-  return {get,state:()=>state,key:code=>events.keydown({code,repeat:false,preventDefault:noop})};
+  return {get,modes,state:()=>state,key:(code,target=null)=>events.keydown({code,target,repeat:false,preventDefault:noop})};
 }
 test('journal UI pauses, restores prior pause state, closes with Escape and resets on restart',()=>{
   const u=ui(); u.key('KeyJ'); assert.equal(u.state().paused,false);
@@ -146,4 +149,20 @@ test('journal UI displays new entries using text content and stays available aft
   u.key('KeyJ'); g.phase='won'; u.key('KeyJ');
   assert.equal(u.get('journal-menu').classList.hidden,false); assert.equal(u.get('journal-button').disabled,false);
   u.key('KeyJ'); assert.equal(g.paused,false); assert.equal(g.phase,'won');
+});
+test('mode picker changes title choice, stays locked after start, and restart preserves Nightwatch',()=>{
+ const u=ui();u.modes[1].onchange();assert.equal(u.state().mode,'nightwatch');
+ assert.equal(u.modes[1].checked,true);assert.equal(u.modes[0].checked,false);
+ u.key('Space',u.modes[1]);assert.equal(u.state().phase,'title');
+ u.get('start').onclick();u.modes[0].onchange();assert.equal(u.state().mode,'nightwatch');
+ u.get('restart').onclick();assert.equal(u.state().mode,'nightwatch');assert.equal(u.state().phase,'day');
+});
+test('Q and touch Guardian activate shield; journal prevents activating it while paused',()=>{
+ const u=ui();u.get('start').onclick();u.key('KeyQ');assert.equal(u.state().guardUses,0);
+ night(u.state());u.key('KeyJ');u.key('KeyQ');assert.equal(u.state().guardUses,0);
+ u.key('KeyJ');u.key('KeyQ');assert.equal(u.state().guardUses,1);assert.equal(u.state().guardTime,3);
+ u.get('touch-guard').onclick();assert.equal(u.state().guardUses,1);
+ u.key('KeyJ');u.key('KeyJ');assert.match(u.get('guard-status').textContent,/Shield active/);
+ assert.equal(u.get('touch-guard').disabled,true);
+ u.get('restart').onclick();night(u.state());u.get('touch-guard').onclick();assert.equal(u.state().guardUses,1);
 });
